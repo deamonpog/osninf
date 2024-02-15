@@ -1,0 +1,138 @@
+---
+title: "OSNINF"
+author: "Xiaoxia Champon"
+date: "2024-02-15"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+#read the data
+```{r}
+rr_count_per_period=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/2_RRCount_per_period.csv")
+
+Matrix_RRCount_per_period=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/2Matrix_RRCount_per_period.csv")
+
+RRCount_per_period_matrix_ranked=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/3_RRCount_per_period_matrix_ranked.csv")
+
+RRCount_rank_change_overtime=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/4_RRCount_rank_change_overtime.csv")
+
+A_sampled_adoption_curve=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/A_sampled_adoption_curve.csv")
+```
+
+
+```{r}
+head(rr_count_per_period)
+```
+
+```{r}
+length(unique(rr_count_per_period$Author))
+```
+
+
+```{r}
+head(Matrix_RRCount_per_period)
+```
+
+```{r}
+head(RRCount_per_period_matrix_ranked)
+```
+
+```{r}
+head(RRCount_rank_change_overtime)
+```
+
+
+```{r}
+str(A_sampled_adoption_curve)
+```
+
+```{r}
+A_sampled_adoption_curve$Timestampe=as.numeric(as.POSIXct(A_sampled_adoption_curve$created_at, "%Y-%m-%d %H:%M:%S "))
+```
+```{r}
+A_sampled_adoption_curve$Time01=(A_sampled_adoption_curve$Timestampe-min(A_sampled_adoption_curve$Timestampe))/(max(A_sampled_adoption_curve$Timestampe)-min(A_sampled_adoption_curve$Timestampe))
+```
+
+```{r}
+library(mgcv)
+smooth_adoption_curve=gam(A_sampled_adoption_curve$Count~s(A_sampled_adoption_curve$Time01,bs="cr",m=2,k =25))$linear.predictors
+```
+
+```{r}
+plot(as.Date(A_sampled_adoption_curve$created_at),A_sampled_adoption_curve$Count,xlab="",ylab="Count")
+lines(as.Date(A_sampled_adoption_curve$created_at),smooth_adoption_curve,col="red")
+```
+
+```{r}
+matplot(as.Date(Matrix_RRCount_per_period$TimeBin1D),Matrix_RRCount_per_period[,-1],xlab="",ylab="Count",
+        col="grey",type = "l",cex.lab=1.5, cex.axis=2,lty=1, lwd=3)
+```
+
+```{r}
+matplot(as.Date(Matrix_RRCount_per_period$TimeBin1D),Matrix_RRCount_per_period[,-1],xlab="",ylab="Count",
+        col="grey",type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,20))
+```
+
+```{r}
+dim(RRCount_rank_change_overtime)
+```
+
+```{r}
+RRCount_rank_change_time=as.numeric(as.POSIXct(RRCount_rank_change_overtime$TimeBin1D, "%Y-%m-%d %H:%M:%S "))
+```
+#transform boundary data to non-boundary
+<!--  0.999/(1-0.999^2) -->
+<!-- [1] 499.7499 -->
+<!-- > 0.998/(1-0.998^2) -->
+<!-- [1] 249.7497 -->
+<!-- > 0.9999/(1-0.9999^2) -->
+<!-- [1] 4999.75 -->
+<!-- > 0.9995/(1-0.9995^2) -->
+<!-- [1] 999.7499 -->
+<!-- > 0.9992/(1-0.9992^2) -->
+<!-- [1] 624.7499 -->
+#0.997, 0.998, 0.999, 1
+```{r}
+
+spareman_new=round(RRCount_rank_change_overtime$spearman_corrs,3)
+spareman_new[spareman_new>0.999]=0.9993
+
+kendall_new=round(RRCount_rank_change_overtime$kendall_tau_series,3)
+kendall_new[kendall_new>0.999]=0.9993
+
+spearman_transform=spareman_new/(1-spareman_new^2)
+kendall_transform=kendall_new/(1-kendall_new^2)
+```
+
+#plot spearman and kendall
+```{r}
+plot(as.Date(RRCount_rank_change_overtime$TimeBin1D),spearman_transform,xlab="",ylab="Value",type="l",col="red",ylim=c(0,900))
+lines(as.Date(RRCount_rank_change_overtime$TimeBin1D),kendall_transform,xlab="",ylab="Value",type="l",col="blue")
+legend("topright",legend=c("spearman","kendall tau"),col=c("red","blue"),lty=c(1,1),horiz = TRUE)
+```
+#The null hypothesis of the ADF test is that the time series contains a unit root and is non-stationary, while the alternative hypothesis is that the time series is stationary
+```{r}
+library(tseries)
+adf.test(spearman_transform)
+```
+
+```{r}
+adf.test(kendall_transform)
+```
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
