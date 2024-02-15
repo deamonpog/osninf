@@ -7,7 +7,7 @@ output:
   pdf_document: default
 ---
 
-
+#climiate hashtag
 #read the data
 ```{r}
 rr_count_per_period=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/2_RRCount_per_period.csv")
@@ -23,7 +23,7 @@ A_sampled_adoption_curve=read.csv("/Users/xzhao17/Documents/GitHub/osninf/data/A
 
 
 ```{r}
-head(rr_count_per_period)
+#head(rr_count_per_period)
 ```
 
 ```{r}
@@ -32,15 +32,15 @@ length(unique(rr_count_per_period$Author))
 
 
 ```{r}
-head(Matrix_RRCount_per_period)
+#head(Matrix_RRCount_per_period)
 ```
 
 ```{r}
-head(RRCount_per_period_matrix_ranked)
+#head(RRCount_per_period_matrix_ranked)
 ```
 
 ```{r}
-head(RRCount_rank_change_overtime)
+#head(RRCount_rank_change_overtime)
 ```
 
 
@@ -64,15 +64,22 @@ smooth_adoption_curve=gam(A_sampled_adoption_curve$Count~s(A_sampled_adoption_cu
 plot(as.Date(A_sampled_adoption_curve$created_at),A_sampled_adoption_curve$Count,xlab="",ylab="Count")
 lines(as.Date(A_sampled_adoption_curve$created_at),smooth_adoption_curve,col="red")
 ```
+#accumulated curve
+```{r}
+plot(as.Date(A_sampled_adoption_curve$created_at),cumsum(A_sampled_adoption_curve$Count),xlab="",ylab="Count")
+lines(as.Date(A_sampled_adoption_curve$created_at),cumsum(smooth_adoption_curve),col="red")
+```
+
+
 
 ```{r}
 matplot(as.Date(Matrix_RRCount_per_period$TimeBin1D),Matrix_RRCount_per_period[,-1],xlab="",ylab="Count",
-        col="grey",type = "l",cex.lab=1.5, cex.axis=2,lty=1, lwd=3)
+        type = "l",cex.lab=1.5, cex.axis=2,lty=1, lwd=3)
 ```
 
 ```{r}
 matplot(as.Date(Matrix_RRCount_per_period$TimeBin1D),Matrix_RRCount_per_period[,-1],xlab="",ylab="Count",
-        col="grey",type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,20))
+        type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,20))
 ```
 
 ```{r}
@@ -108,11 +115,12 @@ kendall_transform=kendall_new/(1-kendall_new^2)
 
 #plot spearman and kendall
 ```{r}
-plot(as.Date(RRCount_rank_change_overtime$TimeBin1D),spearman_transform,xlab="",ylab="Value",type="l",col="red",ylim=c(0,900))
-lines(as.Date(RRCount_rank_change_overtime$TimeBin1D),kendall_transform,xlab="",ylab="Value",type="l",col="blue")
-legend("topright",legend=c("spearman","kendall tau"),col=c("red","blue"),lty=c(1,1),horiz = TRUE)
+plot(as.Date(RRCount_rank_change_overtime$TimeBin1D),spearman_transform,xlab="",ylab="Value",type="l",col="red",ylim=c(0,900),cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3)
+lines(as.Date(RRCount_rank_change_overtime$TimeBin1D),kendall_transform,xlab="",ylab="Value",type="l",col="blue",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3)
+legend("topright",legend=c("spearman","kendall tau"),col=c("red","blue"),lty=c(1,1),lwd=3,horiz = TRUE)
 ```
 #The null hypothesis of the ADF test is that the time series contains a unit root and is non-stationary, while the alternative hypothesis is that the time series is stationary
+#it seems like the mean of spearman and kendall tau didn't change over time
 ```{r}
 library(tseries)
 adf.test(spearman_transform)
@@ -122,11 +130,45 @@ adf.test(spearman_transform)
 adf.test(kendall_transform)
 ```
 ```{r}
-
+dim(RRCount_per_period_matrix_ranked)
+```
+```{r}
+matplot(as.Date(RRCount_per_period_matrix_ranked$TimeBin1D),RRCount_per_period_matrix_ranked[,-1], xlab="",ylab="Rank", type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3)
+```
+<!-- Two-sample Kolmogorov-Smirnov (KS) test (Massey, 1951) can be used to compare the distributions of the observations from the two datasets. The null hypothesis (Ho) is that the two dataset values are from the same continuous distribution -->
+```{r}
+#need to test from expected adoption curve
+exp_adop=cumsum(A_sampled_adoption_curve$Count)
+#only user 6 and user 36 has valid p value, however, coming from different distribution
+#all other users have NA as p-value
+ks.test(Matrix_RRCount_per_period[,7],exp_adop)
+ks.test(Matrix_RRCount_per_period[,37],exp_adop)
+#apply(Matrix_RRCount_per_period[,-1],2,function(x){ks.test(x,exp_adop,"")})
+```
+```{r}
+exp_adop
+```
+#print the number of retweet over time by user
+```{r}
+Matrix_RRCount_per_period_user=Matrix_RRCount_per_period[,-1]
+print_column=function(data_frame){
+    for (i in 1:dim(data_frame)[2]){
+        cat("Data for User:\t", i,
+      "\n \t")
+       print(data_frame[,i])
+    }
+}
+print_column(Matrix_RRCount_per_period_user)
+```
+#print the rank over time for each user
+```{r}
+RRCount_per_period_matrix_ranked_user=RRCount_per_period_matrix_ranked[,-1]
+print_column(RRCount_per_period_matrix_ranked_user)
 ```
 
+```{r}
 
-
+```
 
 
 
