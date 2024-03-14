@@ -28,7 +28,7 @@ smooth_adoption_curve=gam(adoption_or_volumn_data$Count~s(adoption_or_volumn_dat
 
 plot(as.Date(adoption_or_volumn_data$created_at),adoption_or_volumn_data$Count,xlab="",
      ylab="Count",cex.lab=1.5,cex.axis=1.5)
-lines(as.Date(adoption_or_volumn_data$created_at),smooth_adoption_curve,col="red")
+lines(as.Date(adoption_or_volumn_data$created_at),smooth_adoption_curve,col="blue")
 
 return(list("Time01"=adoption_or_volumn_data$Time01,"smooth_curve"=smooth_adoption_curve))
 }
@@ -83,6 +83,94 @@ L2_distance_mu_adopt=function(mu_curve,mu_curve_time01,adoption_curve,adoption_c
 ```
 
 
+
+```{r}
+get_fpca_sc_result=function(Matrix_RRCount_per_period,number_top_users,
+                            adoption_time,adoption_smooth_curve){
+  ydata=get_fpca_sc_data(Matrix_RRCount_per_period)
+  Fit.MM=fpca.sc(ydata=ydata, var = TRUE, simul = FALSE)
+  pve_by_scores=cumsum(Fit.MM$evalues)/sum(Fit.MM$evalues)
+  high_infuence_user=which( Fit.MM$scores[,1] %in% sort(Fit.MM$scores[,1],decreasing = TRUE)[1:number_top_users] )
+  
+  low_infuence_user=which(Fit.MM$scores[,1] %in% sort(Fit.MM$scores[,1])[1:number_top_users]  )
+  
+  
+  
+  L2_distance=L2_distance_mu_adopt(Fit.MM$mu,Fit.MM$argvals,
+                                 adoption_smooth_curve,
+                                 adoption_time)
+  plot(adoption_time,
+       adoption_smooth_curve,col="blue",
+       xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type = "l")
+  lines(Fit.MM$argvals,Fit.MM$mu,col="red")
+  legend("topright",legend = c("adoption curve","predicted curve from individuals"),lty=c(1,3),col=
+         c("blue","red"))
+  return(list("high_infuence_user"=high_infuence_user,
+              "low_infuence_user"=low_infuence_user,
+              "pve_by_scores"=pve_by_scores,
+              "L2_distance"=L2_distance))
+}
+# get_fpca_sc_result(Matrix_RRCount_per_period,number_top_users,
+#                             adoption_time,adoption_smooth_curve)
+```
+
+```{r}
+find_top_individuals=function(Matrix_RRCount_per_period,first_few_days,percentage_threshold){
+  sum_TE=apply(Matrix_RRCount_per_period[1:first_few_days,-1],2,sum,na.rm=TRUE)
+  number_top_ten_percent=round(percentage_threshold*length(sum_TE))
+  top_individual=which( sum_TE %in% sort(sum_TE,decreasing = TRUE)[1:number_top_ten_percent] )
+  return(top_individual)
+}
+```
+
+
+```{r}
+get_top_percent_user_results=function(Matrix_RRCount_per_period,top_individual,
+                                      adoption_smooth_curve,A_sampled_adoption_csv,
+                                      adoption_time){
+  data_change_na=Matrix_RRCount_per_period[,-1]
+  data_change_na[data_change_na==0]=NA
+  matplot(as.Date(Matrix_RRCount_per_period$created_at),data_change_na[,c(top_individual)],xlab="",ylab="Count",
+          type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,25),col="grey")
+  lines(as.Date(Matrix_RRCount_per_period$created_at),apply(data_change_na[,c(top_individual)],1,mean,na.rm=TRUE),xlab="",ylab="Count",
+          type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,20),col="red")
+  lines(as.Date(A_sampled_adoption_csv$created_at), adoption_smooth_curve,col="blue",xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type = "l",lty=1)
+  legend("topright",legend=c("Adoption Curve","Mean Total Transfer Entrophy for Top 10% Users","Individual Total Transfer Entrophy"),lty=c(1,1),col=
+           c("blue","red","grey"))
+  
+  time_interval_osninf=as.numeric(as.POSIXct(Matrix_RRCount_per_period$created_at, "%Y-%m-%d %H:%M:%S ",tz="America/New_York"))
+  time_interval_osninf_01=(time_interval_osninf-min(time_interval_osninf))/(max(time_interval_osninf)-min(time_interval_osninf))
+
+  
+  mean_individual_curve_wo=apply(data_change_na[,c(top_individual)],1,mean,na.rm=TRUE)
+  
+  mean_individual_curve_wo_final=mean_individual_curve_wo
+  mean_individual_curve_wo_final[mean_individual_curve_wo_final=="NaN"]=0
+  
+  
+  L2_distance_individual_top=L2_distance_mu_adopt(mean_individual_curve_wo_final,time_interval_osninf_01,
+                                   adoption_smooth_curve,
+                                   adoption_time)
+  return(L2_distance_individual_top)
+}
+```
+
+
+```{r}
+# get_fpca_influencer_results=function(Matrix_RRCount_per_period,data_change_na,adoption_smooth_curve,
+#                                      A_sampled_adoption_curve){
+#   matplot(as.Date(Matrix_RRCount_per_period$created_at),data_change_na[,c(least_individual)],xlab="",ylab="Count",
+#         type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,25),col="grey")
+# lines(as.Date(Matrix_RRCount_per_period$created_at),apply(data_change_na[,c(least_individual)],1,mean,na.rm=TRUE),xlab="",ylab="Count",
+#         type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,ylim=c(0,20),col="red")
+# lines(as.Date(A_sampled_adoption_curve$created_at), adoption_smooth_curve,col="blue",xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type = "l",lty=1)
+# legend("topright",legend=c("Adoption Curve","Mean Total Transfer Entrophy for Last 10% Users","Individual Total Transfer Entrophy"),lty=c(1,1),col=
+#          c("blue","red","grey"))
+# }
+```
+
+
+
 ```{r}
 #step two to get fpca.sc
 ydata=get_fpca_sc_data(Matrix_RRCount_per_period)
@@ -92,14 +180,14 @@ pve_by_scores
 ```
 #which user contribute most to the variability of the sample curves
 ```{r}
-least_individual=which(Fit.MM$scores[,1] %in% Fit.MM$scores[,1][order(Fit.MM$scores[,1],decreasing = TRUE)[1:5]])
+least_individual=which(Fit.MM$scores[,1] %in% sort(Fit.MM$scores[,1])[1:5])
 least_individual
 ```
 
 ```{r}
 #10%
 number_10_percent=round(dim(Matrix_RRCount_per_period[,-1])[2]*0.1)
-least_individual_10=which(Fit.MM$scores[,1] %in% Fit.MM$scores[,1][order(Fit.MM$scores[,1],decreasing = TRUE)[1:number_10_percent]])
+least_individual_10=which(Fit.MM$scores[,1] %in% sort(Fit.MM$scores[,1],decreasing = TRUE)[1:number_10_percent])
 least_individual_10
 ```
 
@@ -107,7 +195,7 @@ least_individual_10
 
 
 ```{r}
-most_individual=which(Fit.MM$scores[,1] %in% Fit.MM$scores[,1][order(Fit.MM$scores[,1])[1:5]])
+most_individual=which(Fit.MM$scores[,1] %in% sort(Fit.MM$scores[,1],decreasing = TRUE)[1:5])
 most_individual
 ```
 
@@ -135,20 +223,25 @@ legend("topright",legend = c("Adoption Curve","Mean Total Transfer Entrophy Curv
          c("blue","red"))
 ```
 
+
+
 ```{r}
 #write a function to do the analysis for different metrics and compare
-path_for_datasets="/Users/xzhao17/Documents/GitHub/osninf/OUTPUTS"
-osninf_compare=function(path_for_csv_fiels,number_top_users){
+
+osninf_compare=function(path_for_datasets,dataset_name,first_few_days,percentage_threshold,Matrix_Measure_per_period){
 #   #read the data
 # Matrix_RRCount_per_period=read.csv("/Users/xzhao17/Documents/GitHub/osninf/newdata/2Matrix_TotalOutTE_per_1D.csv")
 # 
 # volume_curve=read.csv("/Users/xzhao17/Documents/GitHub/osninf/newdata/sampled_1D_volume_curve.csv")
 # A_sampled_adoption_curve=read.csv("/Users/xzhao17/Documents/GitHub/osninf/newdata/sampled_1D_user_adoption_curve.csv")
-  A_sampled_adoption_csv=read.csv("/Users/xzhao17/Documents/GitHub/osninf/newdata/sampled_1D_user_adoption_curve.csv")
-  volume_csv
-  Matrix_TotalOutTE_per_1D_csv
-  metric_two_csv
-  metric_three_csv
+  #A_sampled_adoption_csv=read.csv("/Users/xzhao17/Documents/GitHub/osninf/newdata/sampled_1D_user_adoption_curve.csv")
+  #path_for_datasets="/Users/xzhao17/Documents/GitHub/osninf/OUTPUTS/"
+  A_sampled_adoption_csv=read.csv(paste0(path_for_datasets, dataset_name, "/sampled_1D_user_adoption_curve.csv"))
+  volume_csv=read.csv(paste0(path_for_datasets, dataset_name,"/sampled_1D_volume_curve.csv"))
+  
+  number_top_users=round(dim(Matrix_Measure_per_period[,-1])[2]*percentage_threshold)
+  
+  #metric_three_csv=read.csv(paste0(path_for_datasets, dataset_name,"/4Matrix_TotalOutTE_per_1D.csv"))
   ###adoption curve
   adoption_curve=adoption_volumn_fit(A_sampled_adoption_csv)
   adoption_smooth_curve=adoption_curve$smooth_curve
@@ -157,61 +250,118 @@ osninf_compare=function(path_for_csv_fiels,number_top_users){
   volumn_curve=adoption_volumn_fit(volume_csv)
   volumn_smooth_curve=volumn_curve$smooth_curve
   volumn_time=volumn_curve$Time01
+  ##
+  top_individual=find_top_individuals(Matrix_Measure_per_period,first_few_days,percentage_threshold)
   ##get fpca.sc data for each metric
-  ydata=get_fpca_sc_data(Matrix_RRCount_per_period)
-  Fit.MM=fpca.sc(ydata=ydata, var = TRUE, simul = FALSE)
-  pve_by_scores=cumsum(Fit.MM$evalues)/sum(Fit.MM$evalues)
-  high_infuence_user=which(Fit.MM$scores[,1] %in% Fit.MM$scores[,1][order(Fit.MM$scores[,1])[1:number_top_users]])
-  L2_distance=L2_distance_mu_adopt(Fit.MM$mu,Fit.MM$argvals,
-                                 adoption_smooth_curve,
-                                 adoption_time)
-  plot(A_sampled_adoption_curve$Time01,
-       smooth_adoption_curve,col="blue",
-       xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type = "l")
-  lines(Fit.MM$argvals,Fit.MM$mu,col="red")
-  legend("topright",legend = c("adoption curve","predicted curve from individuals"),lty=c(1,3),col=
-         c("blue","red"))
-  ###repeat the same for the 2nd metric
+  # ydata=get_fpca_sc_data(Matrix_Measure_per_period)
+  # Fit.MM=fpca.sc(ydata=ydata, var = TRUE, simul = FALSE)
+  # pve_by_scores=cumsum(Fit.MM$evalues)/sum(Fit.MM$evalues)
+  # high_infuence_user=which(Fit.MM$scores[,1] %in% Fit.MM$scores[,1][order(Fit.MM$scores[,1])[1:number_top_users]])
+  # L2_distance=L2_distance_mu_adopt(Fit.MM$mu,Fit.MM$argvals,
+  #                                adoption_smooth_curve,
+  #                                adoption_time)
+  # plot(A_sampled_adoption_curve$Time01,
+  #      smooth_adoption_curve,col="blue",
+  #      xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type = "l")
+  # lines(Fit.MM$argvals,Fit.MM$mu,col="red")
+  # legend("topright",legend = c("adoption curve","predicted curve from individuals"),lty=c(1,3),col=
+  #        c("blue","red"))
+  TTE_fpca_results=get_fpca_sc_result(Matrix_Measure_per_period,number_top_users,
+                            adoption_time,adoption_smooth_curve)
+  TTE_fpca_high_varability_user_results=get_top_percent_user_results(Matrix_Measure_per_period,
+                                                                     TTE_fpca_results$high_infuence_user,
+                                      adoption_smooth_curve,A_sampled_adoption_csv,
+                                      adoption_time)
+  TTE_fpca_low_varability_user_results=get_top_percent_user_results(Matrix_Measure_per_period,
+                                                                     TTE_fpca_results$low_infuence_user,
+                                      adoption_smooth_curve,A_sampled_adoption_csv,
+                                      adoption_time)
   
-  
-  
-  ###repeat the same for the 3rd metric
+  TTE_top_sum_results=get_top_percent_user_results(Matrix_Measure_per_period,top_individual,
+                                      adoption_smooth_curve,A_sampled_adoption_csv,
+                                      adoption_time)
+  first_10_user=1:number_top_users
+  TTE_fist_10_results=get_top_percent_user_results(Matrix_Measure_per_period,first_10_user,
+                                      adoption_smooth_curve,A_sampled_adoption_csv,
+                                      adoption_time)
+
+  ###################################
   
   #https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html
   ####final table, row 1, L2 distance, row 2 PEV for 1st score, row 3, influential users
   #create matrix with 4 columns
-  TE_summary <- c(L2_distance,round(pve_by_scores[1],2),
-                  list(gsub(".+\\s+", "",  high_infuence_user)))
-  names(TE_summary) <- c('L2 distance', 'PVE', "High Varibility Users")
+  # TE_summary <- c(L2_distance,round(pve_by_scores[1],2),
+  #                 list(gsub(".+\\s+", "",  high_infuence_user)))
+  # names(TE_summary) <- c('L2 distance', 'PVE', "High Varibility Users")
   
- 
+ summary_table=c(TTE_fpca_results$L2_distance,TTE_fpca_high_varability_user_results,
+                     TTE_fpca_low_varability_user_results,TTE_top_sum_results,
+                     TTE_fist_10_results)
+names(summary_table)=c("L2_mean","L2_fpca_high","L2_fpca_low","L2_TTE_top_sum","L2_first_10%")
+
   
   
   return(list("adoption_predict"=adoption_smooth_curve,
               "adoption_time"=adoption_time,
               "volumn_predict"=volumn_smooth_curve,
+              "top_individual"=top_individual,
               "volumn_time"=volumn_time,
-              "TE_summary"=TE_summary))
+              "TTE_fpca_results"=TTE_fpca_results,
+              "TTE_fpca_high_varability_user_results"=TTE_fpca_high_varability_user_results,
+              "TTE_fpca_low_varability_user_results"=TTE_fpca_low_varability_user_results,
+              "TTE_top_sum_results"=TTE_top_sum_results,
+              "TTE_fist_10_results"=TTE_fist_10_results,
+              "summary_table"=summary_table))
 }
 ```
 
 
 ```{r}
+path_for_datasets="/Users/xzhao17/Documents/GitHub/osninf/OUTPUTS/"
+dataset_name="climateaction"
+Matrix_TotalOutTE_per_period=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_TotalOutTE_per_1D.csv"))
+
+
+
+first_few_days=14
+percentage_threshold=0.1
+Matrix_Measure_per_period=Matrix_TotalOutTE_per_period
+test_results=osninf_compare(path_for_datasets,dataset_name,first_few_days,percentage_threshold,Matrix_Measure_per_period)
+test_results$summary_table
+```
+
+
+
+```{r}
+dataset_name="ukraine"
+Matrix_RRCount_per_period=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_RRCount_per_1D.csv"))
+Matrix_Measure_per_period=Matrix_RRCount_per_period
+test_results_ukraine=osninf_compare(path_for_datasets,dataset_name,first_few_days,percentage_threshold,Matrix_Measure_per_period)
+test_results_ukraine$summary_table
+```
+
+```{r}
+Matrix_TotalOutTE_per_period_ukraine=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_TotalOutTE_per_1D.csv"))
+Matrix_Measure_per_period=Matrix_TotalOutTE_per_period_ukraine
+test_results_ukraine_TTE=osninf_compare(path_for_datasets,dataset_name,first_few_days,percentage_threshold,Matrix_Measure_per_period)
+test_results_ukraine_TTE$summary_table
+```
+
+
+
+
+
+```{r}
 #Matrix_RRCount_per_period: 120 days, 488-1 individuals
-# first_few_days=10
-# percentage_threshold=0.1
+first_few_days=10
+percentage_threshold=0.1
 # sum_TE=apply(Matrix_RRCount_per_period[1:first_few_days,-1],2,sum,na.rm=TRUE)
 # number_top_ten_percent=round(percentage_threshold*length(sum_TE))
 # 
 # top_individual=which(sum_TE[order(sum_TE)[1:number_top_ten_percent]] %in% sum_TE)
 # top_individual
 
-find_top_individuals=function(Matrix_RRCount_per_period,first_few_days,percentage_threshold){
-  sum_TE=apply(Matrix_RRCount_per_period[1:first_few_days,-1],2,sum,na.rm=TRUE)
-  number_top_ten_percent=round(percentage_threshold*length(sum_TE))
-  top_individual=which(sum_TE[order(sum_TE)[1:number_top_ten_percent]] %in% sum_TE)
-  return(top_individual)
-}
+
 top_individual=find_top_individuals(Matrix_RRCount_per_period,first_few_days,percentage_threshold)
 top_individual
 ```
@@ -254,6 +404,10 @@ L2_distance_individual_top
 
 ```{r}
 
+
+get_top_percent_user_results(Matrix_RRCount_per_period,top_individual,
+                                      adoption_smooth_curve,A_sampled_adoption_csv,
+                                      adoption_time)
 ```
 
 
@@ -438,6 +592,10 @@ time_interval_osninf_01=(time_interval_osninf-min(time_interval_osninf))/(max(ti
 mean_individual_curve_wo=apply(data_change_na[,-c(least_individual)],1,mean,na.rm=TRUE)
 mean_individual_curve=apply(data_change_na[,c(least_individual)],1,mean,na.rm=TRUE)
 
+mean_individual_curve_high=apply(data_change_na[,c(most_individual)],1,mean,na.rm=TRUE)
+mean_individual_curve_high_final=mean_individual_curve_high
+mean_individual_curve_high_final[mean_individual_curve_high=="NaN"]=0
+
 mean_individual_curve_wo_final=mean_individual_curve_wo
 mean_individual_curve_wo_final[mean_individual_curve_wo_final=="NaN"]=0
 
@@ -455,6 +613,11 @@ L2_distance_individual_wo=L2_distance_mu_adopt(mean_individual_curve_wo_final,ti
                                  A_sampled_adoption_curve$Time01)
 L2_distance_individual_wo
 
+
+L2_distance_individual_most=L2_distance_mu_adopt(mean_individual_curve_high_final,time_interval_osninf_01,
+                                 smooth_adoption_curve,
+                                 A_sampled_adoption_curve$Time01)
+L2_distance_individual_most
 ```
 
 
