@@ -35,6 +35,7 @@ return(list("Time01"=adoption_or_volumn_data$Time01,"smooth_curve"=smooth_adopti
 }
 ```
 
+
 ```{r}
 get_fpca_sc_data=function(Matrix_RRCount_per_period){
   num_individuals=dim(Matrix_RRCount_per_period[,-1])[2]
@@ -140,6 +141,12 @@ get_top_percent_user_results=function(Matrix_RRCount_per_period,top_individual,
   
   data_change_na=Matrix_RRCount_per_period[,-1]
   data_change_na[data_change_na==0]=NA
+  
+  ##raw curve
+  # 
+  # matplot(as.Date(Matrix_RRCount_per_period$created_at),   data_change_na[,-1],xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type="l")
+  ###############
+  
   top_mean_curve=apply(data_change_na[,c(top_individual)],1,mean,na.rm=TRUE)
   
   temp_data=Matrix_RRCount_per_period[,-1]
@@ -187,10 +194,6 @@ get_top_percent_user_results=function(Matrix_RRCount_per_period,top_individual,
 # }
 ```
 
-
-```{r}
-
-```
 
 
 
@@ -369,12 +372,48 @@ names(summary_table)=c("L2_mean","L2_fpca_high","L2_fpca_low","L2_TTE_top_sum","
 ```
 
 
+
+#print the number of retweet over time by user
+```{r}
+#Matrix_RRCount_per_period_user=Matrix_RRCount_per_period[,-1]
+#find total number of users that have 50% missing , and ID of these users
+print_column_plot=function(data_frame,main_text){
+  zero_percent=c(0)
+    for (i in 1:dim(data_frame)[2]){
+      #   cat("Data for User:\t", i,
+      # "\n \t")
+      #  print(data_frame[,i])
+    zero_percent[i]=   (sum(data_frame[,i]==0)/dim(data_frame[,-1])[1])>0.5
+      
+    
+    }
+  total_more50p=sum(zero_percent)
+  percent_user=total_more50p/dim(data_frame)[2]
+  user_id_more50=which(zero_percent>0.5)
+  
+  data_change_na=data_frame[,-1]
+   data_change_na[data_change_na==0]=NA
+
+
+  matplot(as.Date(data_frame$created_at),data_change_na,xlab="",ylab="Count",
+        type = "l",cex.lab=1.5, cex.axis=1.5,lty=1, lwd=3,main=main_text)
+  
+  
+  return(list("num_total_more50per_missing"=total_more50p,"percebt_user_missing"=percent_user,"user_id_more50per_missing"=user_id_more50) )
+}
+# zero_count_users_summary=print_column(Matrix_RRCount_per_period_user)
+# zero_count_users_summary
+
+#zero_count_users_summary=print_column_plot(Matrix_Measure_per_period,"RR Count Climiate")
+#zero_count_users_summary
+```
+
+
+
 ```{r}
 path_for_datasets="/Users/xzhao17/Documents/GitHub/osninf/OUTPUTS/"
 dataset_name="climateaction"
 Matrix_TotalOutTE_per_period=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_TotalOutTE_per_1D.csv"))
-
-
 
 first_few_days=14
 percentage_threshold=0.1
@@ -383,6 +422,26 @@ test_results=osninf_compare(path_for_datasets,dataset_name,first_few_days,percen
 test_results$summary_table
 ```
 
+
+```{r}
+print_column_plot(Matrix_TotalOutTE_per_period,"TTE Climate")
+```
+
+
+```{r}
+#function to graph the raw TE curve and RR Count 
+#raw_TTE_RRC_plot=function(TTE_data){
+# data_change_na=Matrix_RRCount_per_period[,-1]
+# data_change_na[data_change_na==0]=NA
+#   matplot(as.Date(Matrix_RRCount_per_period$created_at), data_change_na[,-1],xlab="",ylab="Value",cex.lab=1.5,cex.axis=1.5,type="l")
+
+#}
+```
+
+
+
+
+
 ```{r}
 Matrix_RRCount_per_period=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_RRCount_per_1D.csv"))
 Matrix_Measure_per_period=Matrix_RRCount_per_period
@@ -390,6 +449,9 @@ test_results_RRcount=osninf_compare(path_for_datasets,dataset_name,first_few_day
 test_results_RRcount$summary_table
 ```
 
+```{r}
+print_column_plot(Matrix_Measure_per_period,"RR Count Climate")
+```
 
 
 
@@ -402,11 +464,26 @@ test_results_ukraine$summary_table
 ```
 
 ```{r}
+print_column_plot(Matrix_Measure_per_period,"RR Count Ukraine")
+```
+
+
+
+
+```{r}
 Matrix_TotalOutTE_per_period_ukraine=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_TotalOutTE_per_1D.csv"))
 Matrix_Measure_per_period=Matrix_TotalOutTE_per_period_ukraine
 test_results_ukraine_TTE=osninf_compare(path_for_datasets,dataset_name,first_few_days,percentage_threshold,Matrix_Measure_per_period,"TTE")
 test_results_ukraine_TTE$summary_table
 ```
+
+```{r}
+print_column_plot(Matrix_Measure_per_period,"TTE Ukraine")
+```
+
+
+
+
 
 ```{r}
 dataset_name="covid19"
@@ -416,6 +493,12 @@ test_results_covid19=osninf_compare(path_for_datasets,dataset_name,first_few_day
 test_results_covid19$summary_table
 ```
 
+```{r}
+print_column_plot(Matrix_Measure_per_period,"RR Count Covid")
+```
+
+
+
 
 ```{r}
 Matrix_TotalOutTE_per_period_covid19=read.csv(paste0(path_for_datasets, dataset_name,"/2Matrix_TotalOutTE_per_1D.csv"))
@@ -424,6 +507,9 @@ test_results_covid19_TTE=osninf_compare(path_for_datasets,dataset_name,first_few
 test_results_covid19_TTE$summary_table
 ```
 
+```{r}
+print_column_plot(Matrix_Measure_per_period,"TTE Covid")
+```
 
 
 ```{r}
@@ -796,28 +882,7 @@ matplot(as.Date(Matrix_RRCount_per_period$created_at),data_change_na,xlab="",yla
 ```{r}
 #exp_adop
 ```
-#print the number of retweet over time by user
-```{r}
-Matrix_RRCount_per_period_user=Matrix_RRCount_per_period[,-1]
-#find total number of users that have 50% missing , and ID of these users
-print_column=function(data_frame){
-  zero_percent=c(0)
-    for (i in 1:dim(data_frame)[2]){
-      #   cat("Data for User:\t", i,
-      # "\n \t")
-      #  print(data_frame[,i])
-    zero_percent[i]=   (sum(data_frame[,i]==0)/dim(Matrix_RRCount_per_period[,-1])[1])>0.5
-      
-    
-    }
-  total_more50p=sum(zero_percent)
-  percent_user=total_more50p/dim(data_frame)[2]
-  user_id_more50=which(zero_percent>0.5)
-  return(list("total_more50p"=total_more50p,"percebt_user"=percent_user,"user_id_more50"=user_id_more50) )
-}
-zero_count_users_summary=print_column(Matrix_RRCount_per_period_user)
-zero_count_users_summary
-```
+
 #testing
 ##Some quick notes:
 
